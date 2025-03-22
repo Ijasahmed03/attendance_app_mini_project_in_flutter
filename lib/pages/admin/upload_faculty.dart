@@ -9,7 +9,7 @@ import 'package:attendance/components/custom_drawer.dart';
 class UploadFaculty extends StatefulWidget {
   final String adminName;
 
-  UploadFaculty({required this.adminName});
+  const UploadFaculty({super.key, required this.adminName});
 
   @override
   _UploadFacultyState createState() => _UploadFacultyState();

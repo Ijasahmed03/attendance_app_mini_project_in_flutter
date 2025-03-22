@@ -5,10 +5,10 @@ import 'package:attendance/pages/faculty/faculty_home.dart';
 import 'package:attendance/pages/login_page.dart';
 import 'package:attendance/pages/faculty/mark_attendance.dart'; // Add this line
 
-class CustomDrawer extends StatelessWidget {
+class FacultyDrawer extends StatelessWidget {
   final String facultyName;
 
-  const CustomDrawer({super.key, required this.facultyName});
+  const FacultyDrawer({super.key, required this.facultyName});
 
   @override
   Widget build(BuildContext context) {

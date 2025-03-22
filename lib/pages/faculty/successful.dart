@@ -1,4 +1,4 @@
-import 'package:attendance/pages/faculty/Widgets/drawer.dart' show CustomDrawer;
+import 'package:attendance/pages/faculty/Widgets/drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -9,11 +9,11 @@ class AttendanceConfirmation extends StatelessWidget {
   final List<String> absentStudents;
 
   const AttendanceConfirmation({
-    Key? key,
+    super.key,
     required this.subjectName,
     required this.presentStudents,
     required this.absentStudents,
-  }); // Removed super(key: key)
+  });
 
   void generatePdf(BuildContext context) async {
     final pdf = pw.Document();
@@ -66,7 +66,7 @@ class AttendanceConfirmation extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFDFFFD7),
       appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
-      drawer: CustomDrawer(facultyName: "Lini Miss."),
+      drawer: FacultyDrawer(facultyName: "Lini Miss."),
       body: LayoutBuilder(
         builder: (context, constraints) {
           double screenWidth = constraints.maxWidth;

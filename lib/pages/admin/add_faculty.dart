@@ -7,7 +7,7 @@ import 'package:attendance/pages/admin/upload_faculty.dart';
 class AddFaculty extends StatefulWidget {
   final String adminName;
 
-  AddFaculty({required this.adminName});
+  const AddFaculty({super.key, required this.adminName});
 
   @override
   _AddFacultyState createState() => _AddFacultyState();

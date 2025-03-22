@@ -1,4 +1,4 @@
-import 'package:attendance/pages/faculty/Widgets/drawer.dart' show CustomDrawer;
+import 'package:attendance/pages/faculty/Widgets/drawer.dart';
 import 'package:flutter/material.dart';
 
 class AbsenteesPage extends StatefulWidget {
@@ -6,10 +6,10 @@ class AbsenteesPage extends StatefulWidget {
   final List<Map<String, dynamic>> absentStudents;
 
   const AbsenteesPage({
-    Key? key,
+    super.key,
     required this.subjectName,
     required this.absentStudents,
-  }) : super(key: key);
+  });
 
   @override
   _AbsenteesPageState createState() => _AbsenteesPageState();
@@ -41,7 +41,7 @@ class _AbsenteesPageState extends State<AbsenteesPage> {
         elevation: 0,
         actions: [],
       ),
-      drawer: CustomDrawer(facultyName: "Lini Miss."),
+      drawer: FacultyDrawer(facultyName: "Lini Miss."),
       body: LayoutBuilder(
         builder: (context, constraints) {
           // Calculate sizes based on screen width for responsiveness

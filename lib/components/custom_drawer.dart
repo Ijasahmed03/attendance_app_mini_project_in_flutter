@@ -8,7 +8,7 @@ import 'package:attendance/pages/admin/add_student.dart';
 class CustomDrawer extends StatelessWidget {
   final String adminName; // Accept admin name as a parameter
 
-  CustomDrawer({required this.adminName});
+  const CustomDrawer({super.key, required this.adminName});
 
   @override
   Widget build(BuildContext context) {

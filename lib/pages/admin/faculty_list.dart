@@ -9,7 +9,7 @@ class FacultyPage extends StatefulWidget {
   final String adminName;
   final String department;
 
-  FacultyPage({required this.adminName, required this.department});
+  const FacultyPage({super.key, required this.adminName, required this.department});
 
   @override
   _FacultyPageState createState() => _FacultyPageState();

@@ -1,4 +1,4 @@
-import 'package:attendance/pages/faculty/Widgets/drawer.dart' show CustomDrawer;
+import 'package:attendance/pages/faculty/Widgets/drawer.dart' show FacultyDrawer;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -68,7 +68,7 @@ class _AttendancePageState extends State<AttendancePage> {
         elevation: 0,
         actions: [],
       ),
-      drawer: CustomDrawer(facultyName: facultyName),
+      drawer: FacultyDrawer(facultyName: facultyName),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(

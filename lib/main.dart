@@ -14,8 +14,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(debugShowCheckedModeBanner: false, home: LoginPage(),
-     routes: {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: LoginPage(),
+      routes: {
         '/faculty': (context) => FacultyDashboard(),
         '/login': (context) => LoginPage(),
         '/markAttendance': (context) => AttendancePage(),
@@ -24,11 +26,12 @@ class MyApp extends StatelessWidget {
               absentStudents: [],
               subjectName: 'Algorithm and Analysis',
             ),
-        '/successful': (context) => AttendanceConfirmation(
-          subjectName: 'Algorithm and Analysis',
-          presentStudents: [],
-          absentStudents: [],
-        ), 
+        '/successful':
+            (context) => AttendanceConfirmation(
+              subjectName: 'Algorithm and Analysis',
+              presentStudents: [],
+              absentStudents: [],
+            ),
       },
     );
   }

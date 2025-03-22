@@ -7,7 +7,7 @@ import 'package:attendance/components/custom_drawer.dart';
 class PromoteStudentsScreen extends StatefulWidget {
   final String adminName;
 
-  PromoteStudentsScreen({required this.adminName});
+  const PromoteStudentsScreen({super.key, required this.adminName});
 
   @override
   _PromoteStudentsScreenState createState() => _PromoteStudentsScreenState();

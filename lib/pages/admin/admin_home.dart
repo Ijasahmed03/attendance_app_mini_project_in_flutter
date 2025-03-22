@@ -12,7 +12,7 @@ import 'package:attendance/pages/admin/student_list.dart';
 class AdminHomePage extends StatefulWidget {
   final String adminName;
 
-  AdminHomePage({required this.adminName});
+  const AdminHomePage({super.key, required this.adminName});
 
   @override
   _AdminHomePageState createState() => _AdminHomePageState();

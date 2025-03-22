@@ -1,5 +1,8 @@
 import 'package:attendance/pages/faculty/Widgets/drawer.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class FacultyDashboard extends StatefulWidget {
   const FacultyDashboard({super.key});
@@ -9,9 +12,60 @@ class FacultyDashboard extends StatefulWidget {
 }
 
 class _FacultyDashboardState extends State<FacultyDashboard> {
-  String facultyName = "Lini Miss."; // Simulated database fetch
+  String facultyName = "Loading..."; // Default value
+  String facultyId = "";
   String selectedSubject = "";
-  List<Map<String, String>> subjects = []; // List to store fetched subjects
+  List<Map<String, dynamic>> subjects = [];
+
+  Future<void> fetchFacultyDetails() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? storedFacultyName = prefs.getString('faculty_name');
+    String? storedFacultyId = prefs.getString('faculty_id');
+
+    if (storedFacultyName != null && storedFacultyId != null) {
+      setState(() {
+        facultyName = storedFacultyName;
+        facultyId = storedFacultyId;
+      });
+      print("Fetched facultyId from SharedPreferences: $facultyId");
+      if (facultyId.isNotEmpty) {
+        fetchSubjects(); // Fetch subjects only when facultyId is available
+      }
+    }
+  }
+
+  Future<void> fetchSubjects() async {
+    try {
+      print("Calling subjects endpoint with faculty_id: $facultyId");
+      final response = await http.post(
+        Uri.parse('http://10.0.2.2/localconnect/faculty_subjects.php'),
+        body: {'faculty_id': facultyId},
+      );
+      print("HTTP status: ${response.statusCode}");
+      print("Response body: ${response.body}");
+
+      if (response.statusCode == 200) {
+        var jsonData = json.decode(response.body);
+        if (jsonData is List) {
+          setState(() {
+            subjects =
+                jsonData.map<Map<String, dynamic>>((subject) {
+                  return {
+                    "code": subject["subject_id"].toString(),
+                    "title": subject["subject_name"],
+                  };
+                }).toList();
+          });
+        } else {
+          print("Error fetching subjects: ${jsonData['message']}");
+        }
+      } else {
+        print("HTTP error: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Error fetching subjects: $e");
+    }
+  }
 
   @override
   void initState() {
@@ -19,28 +73,12 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
     fetchFacultyDetails();
   }
 
-  void fetchFacultyDetails() {
-    // Simulate fetching faculty name and subjects from database
-    setState(() {
-      facultyName = "Dr. John Doe"; // Replace with actual fetched name
-      subjects = [
-        {"code": "CST201", "title": "DATA STRUCTURES"},
-        {"code": "CST301", "title": "ALGORITHM AND ANALYSIS"},
-        {"code": "CST202", "title": "OBJECTIVE ORIENTED PROGRAMMING"},
-      ];
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFDFFFD7), // Light green background
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [],
-      ),
-      drawer: CustomDrawer(facultyName: facultyName),
+      backgroundColor: const Color(0xFFDFFFD7),
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
+      drawer: FacultyDrawer(facultyName: facultyName),
       body: LayoutBuilder(
         builder: (context, constraints) {
           return Padding(
@@ -62,15 +100,15 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: 10),
+                const SizedBox(height: 10),
                 Text(
-                  "your subjects:",
+                  "Your Subjects:",
                   style: TextStyle(
                     fontSize: constraints.maxWidth * 0.05,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                SizedBox(height: 10),
+                const SizedBox(height: 10),
                 // Subject List dynamically generated
                 Column(
                   children:
@@ -83,15 +121,14 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
                         );
                       }).toList(),
                 ),
-                Spacer(),
+                const Spacer(),
                 // Buttons at the bottom
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     IconButton(
-                      icon: Icon(Icons.edit, color: Colors.black),
+                      icon: const Icon(Icons.edit, color: Colors.black),
                       onPressed: () {
-                        // Navigate to mark attendance page with selected subject
                         if (selectedSubject.isNotEmpty) {
                           Navigator.pushNamed(
                             context,
@@ -102,15 +139,15 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
                       },
                       iconSize: constraints.maxWidth * 0.08,
                     ),
-                    SizedBox(width: 20),
+                    const SizedBox(width: 20),
                     IconButton(
-                      icon: Icon(Icons.visibility, color: Colors.black),
+                      icon: const Icon(Icons.visibility, color: Colors.black),
                       onPressed: () {},
                       iconSize: constraints.maxWidth * 0.08,
                     ),
                   ],
                 ),
-                SizedBox(height: 20),
+                const SizedBox(height: 20),
               ],
             ),
           );
@@ -120,7 +157,7 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
   }
 }
 
-// Widget for displaying subject details
+// Subject Card Widget
 class SubjectCard extends StatelessWidget {
   final String code;
   final String title;

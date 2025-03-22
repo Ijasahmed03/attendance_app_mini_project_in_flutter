@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For date formatting
 
 class AttendanceView extends StatefulWidget {
+  const AttendanceView({super.key});
+
   @override
   _AttendanceViewState createState() => _AttendanceViewState();
 }

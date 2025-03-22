@@ -55,7 +55,7 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
       });
 
       final response = await http.post(
-        Uri.parse('http://10.0.2.2/localconnect/faculty_subjects.php'),
+        Uri.parse('http://10.0.2.2/localconnect/faculty/faculty_subjects.php'),
         body: {'faculty_id': facultyId},
       );
 
@@ -214,7 +214,7 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
                                   );
                                 },
                         icon: const Icon(Icons.visibility),
-                        label: const Text('View Absentees'),
+                        label: const Text('View Attendance'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,

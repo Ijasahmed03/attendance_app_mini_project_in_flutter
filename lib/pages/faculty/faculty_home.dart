@@ -68,7 +68,7 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
                   return {
                     "code": subject["subject_id"].toString(),
                     "title": subject["subject_name"],
-                    "semester": subject["semester"] ?? "N/A",
+                    "semester": subject["semester"].toString(),
                     "department": subject["department"] ?? "N/A",
                   };
                 }).toList();

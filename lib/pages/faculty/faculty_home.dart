@@ -12,37 +12,52 @@ class FacultyDashboard extends StatefulWidget {
 }
 
 class _FacultyDashboardState extends State<FacultyDashboard> {
-  String facultyName = "Loading..."; // Default value
+  String facultyName = "Loading...";
   String facultyId = "";
   String selectedSubject = "";
   List<Map<String, dynamic>> subjects = [];
+  bool isLoading = true;
+  String errorMessage = "";
 
   Future<void> fetchFacultyDetails() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? storedFacultyName = prefs.getString('faculty_name');
-    String? storedFacultyId = prefs.getString('faculty_id');
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? storedFacultyName = prefs.getString('faculty_name');
+      String? storedFacultyId = prefs.getString('faculty_id');
 
-    if (storedFacultyName != null && storedFacultyId != null) {
-      setState(() {
-        facultyName = storedFacultyName;
-        facultyId = storedFacultyId;
-      });
-      print("Fetched facultyId from SharedPreferences: $facultyId");
-      if (facultyId.isNotEmpty) {
-        fetchSubjects(); // Fetch subjects only when facultyId is available
+      if (storedFacultyName != null && storedFacultyId != null) {
+        setState(() {
+          facultyName = storedFacultyName;
+          facultyId = storedFacultyId;
+        });
+        if (facultyId.isNotEmpty) {
+          await fetchSubjects();
+        }
+      } else {
+        setState(() {
+          errorMessage = "Faculty details not found. Please login again.";
+          isLoading = false;
+        });
       }
+    } catch (e) {
+      setState(() {
+        errorMessage = "Error loading faculty details: $e";
+        isLoading = false;
+      });
     }
   }
 
   Future<void> fetchSubjects() async {
     try {
-      print("Calling subjects endpoint with faculty_id: $facultyId");
+      setState(() {
+        isLoading = true;
+        errorMessage = "";
+      });
+
       final response = await http.post(
         Uri.parse('http://10.0.2.2/localconnect/faculty_subjects.php'),
         body: {'faculty_id': facultyId},
       );
-      print("HTTP status: ${response.statusCode}");
-      print("Response body: ${response.body}");
 
       if (response.statusCode == 200) {
         var jsonData = json.decode(response.body);
@@ -53,17 +68,29 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
                   return {
                     "code": subject["subject_id"].toString(),
                     "title": subject["subject_name"],
+                    "semester": subject["semester"] ?? "N/A",
+                    "department": subject["department"] ?? "N/A",
                   };
                 }).toList();
+            isLoading = false;
           });
         } else {
-          print("Error fetching subjects: ${jsonData['message']}");
+          setState(() {
+            errorMessage = jsonData['message'] ?? "No subjects found";
+            isLoading = false;
+          });
         }
       } else {
-        print("HTTP error: ${response.statusCode}");
+        setState(() {
+          errorMessage = "Server error: ${response.statusCode}";
+          isLoading = false;
+        });
       }
     } catch (e) {
-      print("Error fetching subjects: $e");
+      setState(() {
+        errorMessage = "Error fetching subjects: $e";
+        isLoading = false;
+      });
     }
   }
 
@@ -77,7 +104,11 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFDFFFD7),
-      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text('Faculty Dashboard'),
+      ),
       drawer: FacultyDrawer(facultyName: facultyName),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -87,7 +118,7 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Hi,",
+                  "Welcome,",
                   style: TextStyle(
                     fontSize: constraints.maxWidth * 0.08,
                     fontWeight: FontWeight.bold,
@@ -100,54 +131,99 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 20),
                 Text(
-                  "Your Subjects:",
+                  "Your Assigned Subjects",
                   style: TextStyle(
                     fontSize: constraints.maxWidth * 0.05,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 10),
-                // Subject List dynamically generated
-                Column(
-                  children:
-                      subjects.map((subject) {
+                if (isLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (errorMessage.isNotEmpty)
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          errorMessage,
+                          style: const TextStyle(color: Colors.red),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 10),
+                        ElevatedButton(
+                          onPressed: fetchSubjects,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                else if (subjects.isEmpty)
+                  const Center(child: Text('No subjects assigned yet'))
+                else
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: subjects.length,
+                      itemBuilder: (context, index) {
+                        final subject = subjects[index];
                         return SubjectCard(
                           subject["code"]!,
                           subject["title"]!,
+                          subject["semester"]!,
+                          subject["department"]!,
                           selectedSubject,
                           (code) => setState(() => selectedSubject = code),
                         );
-                      }).toList(),
-                ),
-                const Spacer(),
-                // Buttons at the bottom
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit, color: Colors.black),
-                      onPressed: () {
-                        if (selectedSubject.isNotEmpty) {
-                          Navigator.pushNamed(
-                            context,
-                            '/markAttendance',
-                            arguments: {'subjectCode': selectedSubject},
-                          );
-                        }
                       },
-                      iconSize: constraints.maxWidth * 0.08,
                     ),
-                    const SizedBox(width: 20),
-                    IconButton(
-                      icon: const Icon(Icons.visibility, color: Colors.black),
-                      onPressed: () {},
-                      iconSize: constraints.maxWidth * 0.08,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
+                  ),
+                if (!isLoading && subjects.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed:
+                            selectedSubject.isEmpty
+                                ? null
+                                : () {
+                                  Navigator.pushNamed(
+                                    context,
+                                    '/markAttendance',
+                                    arguments: {'subjectCode': selectedSubject},
+                                  );
+                                },
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Mark Attendance'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed:
+                            selectedSubject.isEmpty
+                                ? null
+                                : () {
+                                  Navigator.pushNamed(
+                                    context,
+                                    '/absentees',
+                                    arguments: {'subjectCode': selectedSubject},
+                                  );
+                                },
+                        icon: const Icon(Icons.visibility),
+                        label: const Text('View Absentees'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                ],
               ],
             ),
           );
@@ -157,16 +233,19 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
   }
 }
 
-// Subject Card Widget
 class SubjectCard extends StatelessWidget {
   final String code;
   final String title;
+  final String semester;
+  final String department;
   final String selectedSubject;
   final Function(String) onSelect;
 
   const SubjectCard(
     this.code,
     this.title,
+    this.semester,
+    this.department,
     this.selectedSubject,
     this.onSelect, {
     super.key,
@@ -175,22 +254,65 @@ class SubjectCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     bool isSelected = selectedSubject == code;
-    return GestureDetector(
-      onTap: () => onSelect(code),
-      child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        color: isSelected ? Colors.greenAccent : Colors.white,
-        child: ListTile(
-          title: Text(
-            code,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: isSelected ? Colors.white : Colors.black,
-            ),
-          ),
-          subtitle: Text(
-            title,
-            style: TextStyle(color: isSelected ? Colors.white : Colors.black),
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: BorderSide(
+          color: isSelected ? Colors.green : Colors.transparent,
+          width: 2,
+        ),
+      ),
+      child: InkWell(
+        onTap: () => onSelect(code),
+        borderRadius: BorderRadius.circular(15),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    code,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? Colors.green : Colors.black,
+                    ),
+                  ),
+                  if (isSelected)
+                    const Icon(Icons.check_circle, color: Colors.green),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: isSelected ? Colors.green : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.school, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Semester: $semester',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(width: 16),
+                  Icon(Icons.business, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 4),
+                  Text(
+                    department,
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

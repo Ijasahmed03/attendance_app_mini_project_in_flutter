@@ -190,25 +190,25 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
                       ElevatedButton.icon(
                         onPressed: selectedSubject.isEmpty
                             ? null
-                            : () {
+                            : () async {
                           // Find the selected subject data
                           final selectedData = subjects.firstWhere(
                                 (subject) => subject["code"] == selectedSubject,
                             orElse: () => {},
                           );
 
-                          // ✅ Navigate with complete parameters
-                          Navigator.pushNamed(
-                            context,
-                            '/markAttendance',
-                            arguments: {
-                              'faculty_id': facultyId,
-                              'subject_id': selectedData['code'],
-                              'semester_id': selectedData['semester'],
-                              'subject_name': selectedData['title'],
-                            },
-                          );
+                          // ✅ Store parameters in SharedPreferences
+                          SharedPreferences prefs = await SharedPreferences.getInstance();
+                          await prefs.setString('faculty_id', facultyId);
+                          await prefs.setString('faculty_name', facultyName);
+                          await prefs.setString('subject_id', selectedData['code']);
+                          await prefs.setString('semester_id', selectedData['semester']);
+                          await prefs.setString('subject_name', selectedData['title']);
+
+                          // ✅ Navigate without parameters
+                          Navigator.pushNamed(context, '/markAttendance');
                         },
+
                         icon: const Icon(Icons.edit),
                         label: const Text('Mark Attendance'),
                         style: ElevatedButton.styleFrom(

@@ -327,10 +327,29 @@ class _AttendancePageState extends State<AttendancePage> {
                   ),
                 ),
               ],
+
             ),
+
           ),
+
         ),
+
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          print("Save button clicked");
+          saveAttendance();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Attendance saved successfully!"),
+              backgroundColor: Colors.green,
+            ),
+          );
+        },
+        backgroundColor: Colors.blue,
+        child: const Icon(Icons.save, color: Colors.white),
+      ),
+
     );
   }
 }

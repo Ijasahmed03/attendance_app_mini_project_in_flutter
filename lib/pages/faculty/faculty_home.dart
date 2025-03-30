@@ -1,3 +1,4 @@
+
 import 'package:attendance/pages/faculty/Widgets/drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -103,11 +104,12 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFDFFFD7),
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.blueAccent,
         elevation: 0,
-        title: const Text('Faculty Dashboard'),
+        title: const Text('Faculty Dashboard',
+            style:TextStyle(color: Colors.white)),
       ),
       drawer: FacultyDrawer(facultyName: facultyName),
       body: LayoutBuilder(
@@ -161,40 +163,52 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
                     ),
                   )
                 else if (subjects.isEmpty)
-                  const Center(child: Text('No subjects assigned yet'))
-                else
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: subjects.length,
-                      itemBuilder: (context, index) {
-                        final subject = subjects[index];
-                        return SubjectCard(
-                          subject["code"]!,
-                          subject["title"]!,
-                          subject["semester"]!,
-                          subject["department"]!,
-                          selectedSubject,
-                          (code) => setState(() => selectedSubject = code),
-                        );
-                      },
+                    const Center(child: Text('No subjects assigned yet'))
+                  else
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: subjects.length,
+                        itemBuilder: (context, index) {
+                          final subject = subjects[index];
+                          return SubjectCard(
+                            subject["code"]!,
+                            subject["title"]!,
+                            subject["semester"]!,
+                            subject["department"]!,
+                            selectedSubject,
+                                (code) => setState(() => selectedSubject = code),
+                          );
+                        },
+                      ),
                     ),
-                  ),
                 if (!isLoading && subjects.isNotEmpty) ...[
                   const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
+                      // ✅ Mark Attendance Button
                       ElevatedButton.icon(
-                        onPressed:
-                            selectedSubject.isEmpty
-                                ? null
-                                : () {
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/markAttendance',
-                                    arguments: {'subjectCode': selectedSubject},
-                                  );
-                                },
+                        onPressed: selectedSubject.isEmpty
+                            ? null
+                            : () {
+                          // Find the selected subject data
+                          final selectedData = subjects.firstWhere(
+                                (subject) => subject["code"] == selectedSubject,
+                            orElse: () => {},
+                          );
+
+                          // ✅ Navigate with complete parameters
+                          Navigator.pushNamed(
+                            context,
+                            '/markAttendance',
+                            arguments: {
+                              'faculty_id': facultyId,
+                              'subject_id': selectedData['code'],
+                              'semester_id': selectedData['semester'],
+                              'subject_name': selectedData['title'],
+                            },
+                          );
+                        },
                         icon: const Icon(Icons.edit),
                         label: const Text('Mark Attendance'),
                         style: ElevatedButton.styleFrom(
@@ -202,17 +216,32 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
                           foregroundColor: Colors.white,
                         ),
                       ),
+
+                      // ✅ View Attendance Button
                       ElevatedButton.icon(
-                        onPressed:
-                            selectedSubject.isEmpty
-                                ? null
-                                : () {
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/absentees',
-                                    arguments: {'subjectCode': selectedSubject},
-                                  );
-                                },
+                        onPressed: selectedSubject.isEmpty
+                            ? null
+                            : () {
+                          // Find the selected subject data
+                          final selectedData = subjects.firstWhere(
+                                (subject) => subject["code"] == selectedSubject,
+                            orElse: () => {},
+                          );
+
+                          // ✅ Navigate with complete parameters
+                          Navigator.pushNamed(
+                            context,
+                            '/markAttendance',
+                            arguments: {
+                              'faculty_id': facultyId,
+                              'faculty_name': facultyName,      // ✅ Pass faculty name
+                              'subject_id': selectedData['code'],
+                              'semester_id': selectedData['semester'],
+                              'subject_name': selectedData['title'],
+                            },
+                          );
+
+                        },
                         icon: const Icon(Icons.visibility),
                         label: const Text('View Attendance'),
                         style: ElevatedButton.styleFrom(
@@ -222,6 +251,7 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 20),
                 ],
               ],
@@ -242,14 +272,14 @@ class SubjectCard extends StatelessWidget {
   final Function(String) onSelect;
 
   const SubjectCard(
-    this.code,
-    this.title,
-    this.semester,
-    this.department,
-    this.selectedSubject,
-    this.onSelect, {
-    super.key,
-  });
+      this.code,
+      this.title,
+      this.semester,
+      this.department,
+      this.selectedSubject,
+      this.onSelect, {
+        super.key,
+      });
 
   @override
   Widget build(BuildContext context) {

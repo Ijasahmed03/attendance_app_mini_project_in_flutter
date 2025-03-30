@@ -1,9 +1,8 @@
 // ignore_for_file: unused_import
 
 import 'package:flutter/material.dart';
-import 'package:attendance/pages/faculty/faculty_home.dart';
 import 'package:attendance/pages/login_page.dart';
-import 'package:attendance/pages/faculty/mark_attendance.dart'; // Add this line
+import 'package:shared_preferences/shared_preferences.dart';  // Added for logout
 
 class FacultyDrawer extends StatelessWidget {
   final String facultyName;
@@ -17,7 +16,7 @@ class FacultyDrawer extends StatelessWidget {
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: BoxDecoration(color: Colors.greenAccent),
+            decoration: BoxDecoration(color: Colors.blueAccent),
             child: Text(
               facultyName,
               style: TextStyle(
@@ -27,6 +26,8 @@ class FacultyDrawer extends StatelessWidget {
               ),
             ),
           ),
+
+          // ✅ Dashboard Navigation
           ListTile(
             leading: Icon(Icons.home),
             title: Text("Dashboard"),
@@ -36,18 +37,21 @@ class FacultyDrawer extends StatelessWidget {
             },
           ),
 
+          // ✅ Logout Navigation with Session Clearing
           ListTile(
             leading: Icon(Icons.logout),
             title: Text("Logout"),
-            onTap: () {
+            onTap: () async {
+              // ✅ Clear faculty session
+              SharedPreferences prefs = await SharedPreferences.getInstance();
+              await prefs.clear();
+
               Navigator.pop(context);
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text("Logged Out")));
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => LoginPage()),
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("Logged Out")),
               );
+
+              Navigator.pushReplacementNamed(context, '/login');
             },
           ),
         ],

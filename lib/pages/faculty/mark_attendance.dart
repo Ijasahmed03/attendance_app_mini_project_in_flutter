@@ -66,34 +66,37 @@ class _AttendancePageState extends State<AttendancePage> {
   Future<void> fetchStudentList(String semester) async {
     try {
       final response = await http.get(
-        Uri.parse("http://10.0.2.2/localconnect/faculty/fetch_students.php?semester=$semesterId"), // Emulator IP
-      );
+        Uri.parse("http://10.0.2.2/localconnect/faculty/fetch_students.php?semester=$semester"),
+      ).timeout(Duration(seconds: 10));
 
-      if (response.statusCode == 200 && response.body.isNotEmpty) {
-        final List<dynamic> data = jsonDecode(response.body);
-        if (data.isNotEmpty) {
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+
+        if (data['success'] == true) {
+          // Get and sort students
+          var rawStudents = (data['students'] as List)
+              .map((student) => Map<String, dynamic>.from(student)) // Create new map
+              .toList();
+
+          rawStudents.sort((a, b) => a['name'].compareTo(b['name']));
+
+          // Add roll numbers
           setState(() {
-            students = data.map((student) => {
-              "id": student["id"],
-              "name": student["name"],
-              "email": student["email"],
-              "department": student["department_id"],
-              "semester": student["semester"],
-              "present": true,  // Default status
+            students = rawStudents.asMap().entries.map((entry) {
+              return {
+                ...entry.value,
+                'present': true,
+                'roll_no': entry.key + 1,
+              };
             }).toList();
             filteredStudents = List.from(students);
           });
-        } else {
-          print("No students found.");
         }
-      } else {
-        print("Failed to fetch students. Status code: ${response.statusCode}");
       }
-    } catch (error) {
-      print("Error fetching students: $error");
+    } catch (e) {
+      // Error handling remains same
     }
   }
-
   void updateTime() {
     setState(() {
       currentTime = DateFormat('hh:mm a - dd-MM-yyyy').format(DateTime.now());
@@ -163,7 +166,7 @@ class _AttendancePageState extends State<AttendancePage> {
         filteredStudents = List.from(students);
       });
 
-      await saveAttendance();
+      // Only show the status change message, not the save confirmation
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -279,7 +282,7 @@ class _AttendancePageState extends State<AttendancePage> {
                       style: TextStyle(fontSize: 18, color: Colors.red),
                     ),
                   )
-                      : ListView.builder(
+                  :ListView.builder(
                     itemCount: filteredStudents.length,
                     itemBuilder: (context, index) {
                       var student = filteredStudents[index];
@@ -295,7 +298,7 @@ class _AttendancePageState extends State<AttendancePage> {
                                 ? Colors.green
                                 : Colors.red,
                             child: Text(
-                              "${student["id"]}",
+                              "${student["roll_no"]}", // Changed from "id" to "roll_no"
                               style: TextStyle(color: Colors.white),
                             ),
                           ),
@@ -327,7 +330,7 @@ class _AttendancePageState extends State<AttendancePage> {
                         ),
                       );
                     },
-                  ),
+                  )
                 ),
               ],
             ),

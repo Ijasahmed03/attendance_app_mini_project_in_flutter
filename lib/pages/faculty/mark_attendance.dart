@@ -17,7 +17,10 @@ class AttendancePage extends StatefulWidget {
 
 class _AttendancePageState extends State<AttendancePage> {
   String facultyName = "Loading...";
-  String subjectName = "";
+  String subjectName = "Loading...";
+  String facultyId = "";
+  String subjectId = "";
+  String semesterId = "";
   List<Map<String, dynamic>> students = [];
   bool allAbsent = true;
   TextEditingController hoursController = TextEditingController();
@@ -29,9 +32,7 @@ class _AttendancePageState extends State<AttendancePage> {
   @override
   void initState() {
     super.initState();
-    fetchFacultyName();
-    fetchSubjectName();
-    fetchStudentList("S2");  // Semester can be dynamically passed
+    retrieveAttendanceData();
     updateTime();
     timer = Timer.periodic(Duration(seconds: 60), (timer) => updateTime());
   }
@@ -44,32 +45,32 @@ class _AttendancePageState extends State<AttendancePage> {
     super.dispose();
   }
 
-  // ✅ Fetch faculty name dynamically from SharedPreferences
-  Future<void> fetchFacultyName() async {
+  // Retrieve shared data from SharedPreferences
+  Future<void> retrieveAttendanceData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? name = prefs.getString('faculty_name');
-
     setState(() {
-      facultyName = name ?? "Unknown Faculty";
+      facultyId = prefs.getString('faculty_id') ?? "";
+      facultyName = prefs.getString('faculty_name') ?? "Unknown Faculty";
+      subjectId = prefs.getString('subject_id') ?? "";
+      subjectName = prefs.getString('subject_name') ?? "Unknown Subject";
+      semesterId = prefs.getString('semester_id') ?? "";
     });
+
+    // Fetch students using the retrieved semester ID
+    if (semesterId.isNotEmpty) {
+      await fetchStudentList(semesterId);
+    }
   }
 
-  void fetchSubjectName() {
-    setState(() {
-      subjectName = "CST301 - Algorithm and Analysis";
-    });
-  }
-
-  // ✅ Fetch student list with proper error handling
+  // Fetch student list with proper error handling
   Future<void> fetchStudentList(String semester) async {
     try {
       final response = await http.get(
-        Uri.parse("http://10.0.2.2/localconnect/faculty/fetch_students.php?semester=$semester"), // Emulator IP
+        Uri.parse("http://10.0.2.2/localconnect/faculty/fetch_students.php?semester=$semesterId"), // Emulator IP
       );
 
       if (response.statusCode == 200 && response.body.isNotEmpty) {
         final List<dynamic> data = jsonDecode(response.body);
-
         if (data.isNotEmpty) {
           setState(() {
             students = data.map((student) => {
@@ -102,6 +103,12 @@ class _AttendancePageState extends State<AttendancePage> {
   Future<void> saveAttendance() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setString('attendance', jsonEncode(students));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Attendance saved successfully!"),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
   Future<void> loadAttendance() async {
@@ -147,7 +154,6 @@ class _AttendancePageState extends State<AttendancePage> {
       ),
     );
 
-    // ✅ Only toggle attendance if confirmed
     if (confirm == true) {
       setState(() {
         allAbsent = !allAbsent;
@@ -168,7 +174,6 @@ class _AttendancePageState extends State<AttendancePage> {
       );
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -253,8 +258,6 @@ class _AttendancePageState extends State<AttendancePage> {
                           onChanged: (value) => toggleAllAttendance(),
                           activeColor: Colors.green,
                           inactiveThumbColor: Colors.red,
-                        //  activeTrackColor: Colors.lightGreenAccent,
-                       //   inactiveTrackColor: Colors.redAccent,
                         ),
                       ],
                     ),
@@ -327,29 +330,16 @@ class _AttendancePageState extends State<AttendancePage> {
                   ),
                 ),
               ],
-
             ),
-
           ),
-
         ),
-
       ),
+      // Normal Save Button at the bottom (not a floating button)
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          print("Save button clicked");
-          saveAttendance();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Attendance saved successfully!"),
-              backgroundColor: Colors.green,
-            ),
-          );
-        },
+        onPressed: saveAttendance,
         backgroundColor: Colors.blue,
-        child: const Icon(Icons.save, color: Colors.white),
+        child: Icon(Icons.save, color: Colors.white),
       ),
-
     );
   }
 }

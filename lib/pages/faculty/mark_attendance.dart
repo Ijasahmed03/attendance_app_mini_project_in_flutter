@@ -128,16 +128,75 @@ class _AttendancePageState extends State<AttendancePage> {
     });
   }
 
+
   Future<void> saveAttendance() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setString('attendance', jsonEncode(students));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Attendance saved successfully!"),
-        backgroundColor: Colors.green,
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final now = DateTime.now();
+
+      final response = await http.post(
+        Uri.parse('http://10.0.2.2/localconnect/faculty/save_attendance.php'),
+
+        body: {
+          'faculty_id': facultyId,
+          'semester_id': semesterId,
+          'subject_id': subjectId,
+          'hours': hoursController.text,
+          'attendance_date': DateFormat('yyyy-MM-dd').format(now),
+          'students': jsonEncode(students.map((s) => {
+            'id': s['id'],
+            'present': s['present'],
+          }).toList()),
+        },
+      );
+
+      final result = jsonDecode(response.body);
+      if (response.statusCode == 200 && result['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Attendance saved to database!"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        throw Exception(result['error'] ?? 'Failed to save attendance');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error saving attendance: ${e.toString()}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+
+  Future<void> confirmAndSaveAttendance() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Confirm Save"),
+        content: const Text("Are you sure you want to save this attendance record?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Save"),
+          ),
+        ],
       ),
     );
+
+    if (confirmed == true) {
+      await saveAttendance();
+    }
   }
+
+
 
   Future<void> loadAttendance() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -349,7 +408,7 @@ class _AttendancePageState extends State<AttendancePage> {
                               setState(() {
                                 student["present"] = !student["present"];
                               });
-                              saveAttendance();
+                             // saveAttendance();
                             },
                           ),
                         ),
@@ -364,7 +423,7 @@ class _AttendancePageState extends State<AttendancePage> {
       ),
       // Normal Save Button at the bottom (not a floating button)
       floatingActionButton: FloatingActionButton(
-        onPressed: saveAttendance,
+        onPressed: confirmAndSaveAttendance,
         backgroundColor: Colors.blue,
         child: Icon(Icons.save, color: Colors.white),
       ),

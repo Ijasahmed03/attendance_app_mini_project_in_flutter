@@ -65,36 +65,61 @@ class _AttendancePageState extends State<AttendancePage> {
   // Fetch student list with proper error handling
   Future<void> fetchStudentList(String semester) async {
     try {
+      print("Fetching students for semester: $semester");
+
       final response = await http.get(
         Uri.parse("http://10.0.2.2/localconnect/faculty/fetch_students.php?semester=$semester"),
       ).timeout(Duration(seconds: 10));
+
+      print("Response: ${response.body}");
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
 
         if (data['success'] == true) {
-          // Get and sort students
-          var rawStudents = (data['students'] as List)
-              .map((student) => Map<String, dynamic>.from(student)) // Create new map
+          // 1. Create base student list with null checks
+          var studentList = (data['students'] as List)
+              .where((s) => s['name'] != null && s['name'].toString().trim().isNotEmpty)
+              .map((s) => Map<String, dynamic>.from(s)) // Create clean copy
               .toList();
 
-          rawStudents.sort((a, b) => a['name'].compareTo(b['name']));
+          // 2. Sort alphabetically by name
+          studentList.sort((a, b) => a['name'].compareTo(b['name']));
 
-          // Add roll numbers
+          // 3. Add roll numbers while preserving all original data
           setState(() {
-            students = rawStudents.asMap().entries.map((entry) {
+            students = studentList.asMap().entries.map((entry) {
+              int index = entry.key;
+              var student = entry.value;
               return {
-                ...entry.value,
-                'present': true,
-                'roll_no': entry.key + 1,
+                ...student,
+                'present': true, // Default attendance status
+                'roll_no': index + 1, // 1-based roll number
               };
             }).toList();
+
             filteredStudents = List.from(students);
           });
+
+          debugPrint('Students loaded: ${students.map((s) => '${s['roll_no']}:${s['name']}').join(', ')}');
+        } else {
+          throw Exception(data['error'] ?? 'Failed to fetch students');
         }
+      } else {
+        throw Exception('HTTP Error ${response.statusCode}');
       }
     } catch (e) {
-      // Error handling remains same
+      print("Error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error loading students: ${e.toString().replaceAll('Exception: ', '')}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      setState(() {
+        students = [];
+        filteredStudents = [];
+      });
     }
   }
   void updateTime() {

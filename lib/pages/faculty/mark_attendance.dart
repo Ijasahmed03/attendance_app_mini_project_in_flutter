@@ -403,6 +403,7 @@ setState(()=> isSaving=true);
       drawer: FacultyDrawer(facultyName: facultyName),
       appBar: AppBar(
         backgroundColor: Colors.blueAccent,
+        iconTheme: const IconThemeData(color: Colors.white),
         title: Text(facultyName, style: TextStyle(color: Colors.white)),
         actions: [
           IconButton(

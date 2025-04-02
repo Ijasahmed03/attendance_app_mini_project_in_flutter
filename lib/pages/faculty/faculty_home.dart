@@ -108,6 +108,7 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         backgroundColor: Colors.blueAccent,
+        iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
         title: const Text('Faculty Dashboard',
             style:TextStyle(color: Colors.white)),

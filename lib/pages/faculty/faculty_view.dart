@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // For date formatting
-import 'package:http/http.dart' as http; // Added missing import
+import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
 import 'package:attendance/pages/faculty/Widgets/drawer.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+
 
 class AttendanceViewPage extends StatefulWidget {
   final String facultyId;
@@ -11,13 +12,14 @@ class AttendanceViewPage extends StatefulWidget {
   final String semesterId;
   final String subjectId;
   final String subjectName;
+
   const AttendanceViewPage({
     required this.facultyId,
     required this.facultyName,
     required this.semesterId,
     required this.subjectId,
     required this.subjectName,
-    Key? key, // Added key parameter
+    Key? key,
   }) : super(key: key);
 
   @override
@@ -25,235 +27,298 @@ class AttendanceViewPage extends StatefulWidget {
 }
 
 class _AttendanceViewPageState extends State<AttendanceViewPage> {
-  // Added missing state variables
- String facultyName = "Loading...";
-  String subjectName = "Loading...";
-  String facultyId = "";
-  String subjectId = "";
-  String semesterId = "";
+  DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
+  DateTime _endDate = DateTime.now();
+  List<Map<String, dynamic>> _students = [];
+  int _subjectTotalHours = 0;
+  int _filteredHours = 0;
+  int _totalStudents = 0;
+  int _totalDays = 0;
+  bool _isLoading = true;
+  String _errorMessage = '';
+  bool _showDetailedView = false; // Toggle between views
+  final Map<int, bool> _expandedStudents = {}; // Track expanded state
+
   @override
   void initState() {
     super.initState();
-    print("Received params - Faculty: ${widget.facultyName}, Subject: ${widget.subjectName}");
-    _loadAdditionalPreferences(); // Only load what's not passed via constructor
-  }
-  Future<void> _loadAdditionalPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    // Load only additional preferences you need
-    // (e.g., user settings that aren't passed via constructor)
-  }
-  Future<void> _loadSharedPreferences() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    setState(() {
-      facultyId = prefs.getString('faculty_id') ?? "";
-      facultyName = prefs.getString('faculty_name') ?? "Unknown Faculty";
-      subjectId = prefs.getString('subject_id') ?? "";
-      subjectName = prefs.getString('subject_name') ?? "Unknown Subject";
-      semesterId = prefs.getString('semester_id') ?? "";
-    });
-  }
-  DateTime _startDate = DateTime.now().subtract(Duration(days: 30));
-  DateTime _endDate = DateTime.now();
-  List<Map<String, dynamic>> _filteredData = [];
-  int _totalHours = 0;
- // String facultyName = ''; // Should be initialized properly
-
-  // Added sorting functions
-  void _sortByName(int columnIndex, bool ascending) {
-    setState(() {
-      _filteredData.sort((a, b) => ascending
-          ? a['name'].compareTo(b['name'])
-          : b['name'].compareTo(a['name']));
-    });
+    _fetchAttendanceData();
   }
 
-  void _sortByDate(int columnIndex, bool ascending) {
+  Future<void> _fetchAttendanceData() async {
     setState(() {
-      _filteredData.sort((a, b) => ascending
-          ? a['date'].compareTo(b['date'])
-          : b['date'].compareTo(a['date']));
+      _isLoading = true;
+      _errorMessage = '';
+      _expandedStudents.clear();
     });
-  }
 
-  Widget _buildDateRangeFilter() {
-    return IconButton(
-      icon: Icon(Icons.calendar_today),
-      onPressed: () async {
-        final range = await showDateRangePicker(
-          context: context,
-          firstDate: DateTime(2023),
-          lastDate: DateTime.now(),
-        );
-        if (range != null) {
+    try {
+      final response = await http.post(
+        Uri.parse('http://10.0.2.2/localconnect/faculty/fetch_attendance_records.php'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'subject_id': widget.subjectId,
+          'faculty_id': widget.facultyId,
+          'semester_id': widget.semesterId,
+          'start_date': DateFormat('yyyy-MM-dd').format(_startDate),
+          'end_date': DateFormat('yyyy-MM-dd').format(_endDate),
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        if (data['success'] == true) {
           setState(() {
-            _startDate = range.start;
-            _endDate = range.end;
-            _fetchAttendanceData();
+            _students = (data['students'] as List).map((student) {
+              // Initialize expanded state
+              _expandedStudents[student['id']] = false;
+              return {
+                'id': student['id'],
+                'number': student['number'],
+                'name': student['name'],
+                'attendance': (student['attendance'] as List).map((att) {
+                  return {
+                    'date': DateTime.parse(att['date']),
+                    'hours': att['hours'],
+                    'status': att['status'],
+                  };
+                }).toList(),
+                'total_hours': student['total_hours'],
+                'present_hours': student['present_hours'],
+                'absent_hours': student['absent_hours'],
+                'attendance_dates': student['attendance_dates'] ?? [],
+              };
+            }).toList();
+
+            _subjectTotalHours = data['subject_total_hours'] ?? 0;
+            _filteredHours = data['filtered_hours'] ?? 0;
+            _totalStudents = data['total_students'] ?? 0;
+            _totalDays = data['total_days'] ?? 0;
+            _isLoading = false;
           });
-        }
-      },
-    );
-  }
-
-  Widget _buildSortButton() {
-    return PopupMenuButton<String>(
-      itemBuilder: (context) => [
-        PopupMenuItem(value: 'name', child: Text('Sort by Name')),
-        PopupMenuItem(value: 'date', child: Text('Sort by Date')),
-      ],
-      onSelected: (value) {
-        if (value == 'name') {
-          _sortByName(0, true);
         } else {
-          _sortByDate(0, true);
+          throw Exception(data['error'] ?? 'Unknown error from server');
         }
+      } else {
+        throw Exception('Server returned status code ${response.statusCode}');
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $_errorMessage')),
+      );
+    }
+  }
+
+  Widget _buildMasterView() {
+    return ListView.builder(
+      itemCount: _students.length,
+      itemBuilder: (context, index) {
+        final student = _students[index];
+        final attendanceRate = _totalDays > 0
+            ? (student['present_hours'] / student['total_hours'] * 100).toStringAsFixed(1)
+            : '0.0';
+
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+          child: InkWell(
+            onTap: () {
+              setState(() {
+                _expandedStudents[student['id']] =
+                !(_expandedStudents[student['id']] ?? false);
+              });
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${student['number']}. ${student['name']}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        '${student['total_hours']}h (${attendanceRate}%)',
+                        style: TextStyle(
+                          color: double.parse(attendanceRate) >= 75
+                              ? Colors.green
+                              : Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  LinearProgressIndicator(
+                    value: _totalDays > 0
+                        ? student['present_hours'] / _totalDays
+                        : 0,
+                    backgroundColor: Colors.grey[200],
+                    color: Colors.blue,
+                  ),
+                  if (_expandedStudents[student['id']] ?? false) ...[
+                    const SizedBox(height: 8),
+                    ...student['attendance'].map<Widget>((record) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Text(DateFormat('dd-MMM').format(record['date'])),
+                            const Spacer(),
+                            Text('${record['hours']}h'),
+                            const SizedBox(width: 16),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: record['status'] == 'present'
+                                    ? Colors.green[100]
+                                    : Colors.red[100],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                record['status'].toString().toUpperCase(),
+                                style: TextStyle(
+                                  color: record['status'] == 'present'
+                                      ? Colors.green[800]
+                                      : Colors.red[800],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
       },
     );
   }
 
-  Widget _buildQuickFilters() {
-    return Wrap(
-      spacing: 8.0,
-      children: [
-        FilterChip(
-          label: Text('Present'),
-          selected: false,
-          onSelected: (bool value) {
-            // Implement filter by present status
-          },
-        ),
-        FilterChip(
-          label: Text('Absent'),
-          selected: false,
-          onSelected: (bool value) {
-            // Implement filter by absent status
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAttendanceTable() {
-    if (_filteredData.isEmpty) {
-      return Center(child: CircularProgressIndicator());
-    }
-
+  Widget _buildTableView() {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
-        columns: [
-          DataColumn(label: Text("Roll No")),
-          DataColumn(label: Text("Name"), onSort: _sortByName),
-          DataColumn(label: Text("Date"), onSort: _sortByDate),
-          DataColumn(label: Text("Hours"), numeric: true),
-          DataColumn(label: Text("Status")),
+        columns: const [
+          DataColumn(label: Text("No")),
+          DataColumn(label: Text("Name")),
+          DataColumn(label: Text("Total Hours"), numeric: true),
+          DataColumn(label: Text("Present"), numeric: true),
+          DataColumn(label: Text("Absent"), numeric: true),
+          DataColumn(label: Text("Attendance %"), numeric: true),
         ],
-        rows: _filteredData.map((record) => DataRow(
-          cells: [
-            DataCell(Text(record['roll_no'].toString())),
-            DataCell(Text(record['name'])),
-            DataCell(Text(DateFormat('dd-MMM').format(record['date']))),
-            DataCell(Text(record['hours'].toString())),
-            DataCell(
-              Chip(
-                label: Text(record['status']),
-                backgroundColor: record['status'] == 'Present'
-                    ? Colors.green[100]
-                    : Colors.red[100],
-              ),
-            ),
-          ],
-        )).toList(),
+        rows: _students.map((student) {
+          final attendanceRate = _totalDays > 0
+              ? (student['present_hours'] / _totalDays * 100).toStringAsFixed(1)
+              : '0.0';
+
+          return DataRow(
+            cells: [
+              DataCell(Text(student['number'].toString())),
+              DataCell(Text(student['name'])),
+              DataCell(Text(student['total_hours'].toString())),
+              DataCell(Text(student['present_hours'].toString())),
+              DataCell(Text(student['absent_hours'].toString())),
+              DataCell(Text('$attendanceRate%')),
+            ],
+          );
+        }).toList(),
       ),
     );
   }
 
- Future<void> _fetchAttendanceData() async {
-   try {
-     final response = await http.post(
-       Uri.parse('http://10.0.2.2/localconnect/faculty/fetch_attendance_records.php'),
-       headers: {'Content-Type': 'application/json'},
-       body: jsonEncode({
-         'subject_id': widget.subjectId,
-         'faculty_id': widget.facultyId,
-         'semester_id': widget.semesterId,
-         'start_date': DateFormat('yyyy-MM-dd').format(_startDate),
-         'end_date': DateFormat('yyyy-MM-dd').format(_endDate),
-       }),
-     );
+  Widget _buildContent() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-     print('Raw response: ${response.body}');
+    if (_errorMessage.isNotEmpty) {
+      return Center(child: Text('Error: $_errorMessage'));
+    }
 
-     final data = jsonDecode(response.body);
+    if (_students.isEmpty) {
+      return const Center(child: Text('No attendance records found'));
+    }
 
-     if (response.statusCode == 200 && data['success'] == true) {
-       setState(() {
-         _filteredData = List<Map<String, dynamic>>.from(data['records'])
-             .map((record) => ({
-           'number': record['number'],
-           'name': record['name'],
-           'date': DateTime.parse(record['date']),
-           'hours': record['hours'],
-           'status': record['status'],
-         }))
-             .toList();
-         _totalHours = data['total_hours'] ?? 0;
-       });
-     } else {
-       throw Exception(data['error'] ?? 'Unknown error');
-     }
-   } catch (e) {
-     print('Error: $e');
-     ScaffoldMessenger.of(context).showSnackBar(
-       SnackBar(content: Text('Error: ${e.toString()}')),
-     );
-   }
- }
-  Future<void> _exportToPDF() async {
-    // Implement PDF export functionality
+    return _showDetailedView ? _buildMasterView() : _buildTableView();
   }
-
-
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: FacultyDrawer(facultyName: widget.facultyName),
       appBar: AppBar(
         backgroundColor: Colors.blueAccent,
+        iconTheme: const IconThemeData(color: Colors.white),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.subjectName), // Subject name from widget constructor
             Text(
-              "Semester: ${widget.semesterId},Total Hours: $_totalHours",
-
-              style: TextStyle(fontSize: 12),
+              widget.subjectName,
+              style: const TextStyle(color: Colors.white),
             ),
+            Text(
+              "Sem: ${widget.semesterId} , Total Hours: $_subjectTotalHours",
+              style: const TextStyle(fontSize: 14, color: Colors.white),
+            ),
+           
           ],
         ),
+      
         actions: [
-          _buildDateRangeFilter(), // Your existing filter button
-          _buildSortButton(),      // Your existing sort button
-        ],
-      ),
-
-
-      body: Column(
-
-        children: [
-
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: _buildQuickFilters(),
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            onPressed: _fetchAttendanceData,
           ),
-          Expanded(child: _buildAttendanceTable()),
+          IconButton(
+            icon: Icon(
+              _showDetailedView ? Icons.list : Icons.grid_view,
+              color: Colors.white,
+            ),
+            onPressed: () {
+              setState(() {
+                _showDetailedView = !_showDetailedView;
+              });
+            },
+            tooltip: _showDetailedView ? 'Show table view' : 'Show detailed view',
+          ),
+          IconButton(
+            icon: const Icon(Icons.calendar_today, color: Colors.white),
+            onPressed: () async {
+              final range = await showDateRangePicker(
+                context: context,
+                firstDate: DateTime(2023),
+                lastDate: DateTime.now(),
+              );
+              if (range != null) {
+                setState(() {
+                  _startDate = range.start;
+                  _endDate = range.end;
+                });
+                _fetchAttendanceData();
+              }
+            },
+          ),
         ],
       ),
+      drawer: FacultyDrawer(facultyName: widget.facultyName),
+      body: _buildContent(),
       floatingActionButton: FloatingActionButton.extended(
-        icon: Icon(Icons.picture_as_pdf),
-        label: Text("Export"),
-        onPressed: _exportToPDF,
+        icon: const Icon(Icons.picture_as_pdf),
+        label: const Text("Export"),
+        onPressed: () {}, // Implement export functionality
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'package:attendance/pages/faculty/faculty_view.dart';
 import 'package:attendance/pages/login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:attendance/pages/faculty/faculty_home.dart';
@@ -26,12 +27,7 @@ class MyApp extends StatelessWidget {
               absentStudents: [],
               subjectName: 'Algorithm and Analysis',
             ),
-        '/successful':
-            (context) => AttendanceConfirmation(
-              subjectName: 'Algorithm and Analysis',
-              presentStudents: [],
-              absentStudents: [],
-            ),
+
       },
     );
   }

@@ -1,5 +1,6 @@
 
 import 'package:attendance/pages/faculty/Widgets/drawer.dart';
+import 'package:attendance/pages/faculty/faculty_view.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -224,21 +225,29 @@ class _FacultyDashboardState extends State<FacultyDashboard> {
                             : () {
                           // Find the selected subject data
                           final selectedData = subjects.firstWhere(
-                                (subject) => subject["code"] == selectedSubject,
-                            orElse: () => {},
+                                (subject) => subject["code"] == selectedSubject
                           );
 
                           // ✅ Navigate with complete parameters
-                          Navigator.pushNamed(
+                          Navigator.push(
                             context,
-                            '/markAttendance',
-                            arguments: {
+                            MaterialPageRoute(
+                              builder: (context)=>AttendanceViewPage(
+                                  facultyId: facultyId,
+                                  facultyName: facultyName,
+                                  semesterId: selectedData['semester'],
+                                  subjectId: selectedData['code'],
+                                  subjectName:  selectedData['title'],
+
+                              ),
+                            ),
+                           /* arguments: {
                               'faculty_id': facultyId,
                               'faculty_name': facultyName,      // ✅ Pass faculty name
                               'subject_id': selectedData['code'],
                               'semester_id': selectedData['semester'],
                               'subject_name': selectedData['title'],
-                            },
+                            },*/
                           );
 
                         },

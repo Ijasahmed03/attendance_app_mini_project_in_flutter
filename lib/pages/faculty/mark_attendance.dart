@@ -128,21 +128,42 @@ class _AttendancePageState extends State<AttendancePage> {
     });
   }
 
+  bool isSaving = false;
 
   Future<void> saveAttendance() async {
+    if (!_isSaveEnabled()) return;
+setState(()=> isSaving=true);
     try {
-      final prefs = await SharedPreferences.getInstance();
       final now = DateTime.now();
+      final formattedDate = DateFormat('yyyy-MM-dd').format(now);
 
-      final response = await http.post(
+      // Pre-check with backend
+      final preCheckResponse = await http.post(
+        Uri.parse('http://10.0.2.2/localconnect/faculty/check_attendance.php'),
+        body: {
+          'faculty_id': facultyId,
+          'subject_id': subjectId,
+          'attendance_date': formattedDate,
+          'hours': hoursController.text,
+        },
+      );
+
+      if (preCheckResponse.statusCode == 200) {
+        final preCheckResult = jsonDecode(preCheckResponse.body);
+        if (preCheckResult['exists'] == true) {
+          throw Exception('Attendance already exists for these hours');
+        }
+      }
+
+      // Complete save payload
+      final saveResponse = await http.post(
         Uri.parse('http://10.0.2.2/localconnect/faculty/save_attendance.php'),
-
         body: {
           'faculty_id': facultyId,
           'semester_id': semesterId,
           'subject_id': subjectId,
           'hours': hoursController.text,
-          'attendance_date': DateFormat('yyyy-MM-dd').format(now),
+          'attendance_date': formattedDate,
           'students': jsonEncode(students.map((s) => {
             'id': s['id'],
             'present': s['present'],
@@ -150,28 +171,33 @@ class _AttendancePageState extends State<AttendancePage> {
         },
       );
 
-      final result = jsonDecode(response.body);
-      if (response.statusCode == 200 && result['success'] == true) {
+      final result = jsonDecode(saveResponse.body);
+      if (saveResponse.statusCode == 200 && result['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Attendance saved to database!"),
+            content: Text("Attendance saved successfully!"),
             backgroundColor: Colors.green,
           ),
         );
       } else {
         throw Exception(result['error'] ?? 'Failed to save attendance');
       }
-    } catch (e) {
+    }
+
+    catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Error saving attendance: ${e.toString()}"),
+          content: Text(e.toString().replaceAll('Exception: ', '')
+              .replaceAll('SocketException', 'Network error')
+              .replaceAll('Failed host lookup', 'No internet connection'),),
           backgroundColor: Colors.red,
         ),
       );
     }
+    finally{
+      if(mounted) setState(()=> isSaving = false);
+    }
   }
-
-
   Future<void> confirmAndSaveAttendance() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -198,16 +224,7 @@ class _AttendancePageState extends State<AttendancePage> {
 
 
 
-  Future<void> loadAttendance() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? savedData = prefs.getString('attendance');
-    if (savedData != null) {
-      setState(() {
-        students = List<Map<String, dynamic>>.from(jsonDecode(savedData));
-        filteredStudents = List.from(students);
-      });
-    }
-  }
+
 
   void filterStudents(String query) {
     query = query.toLowerCase();
@@ -244,9 +261,11 @@ class _AttendancePageState extends State<AttendancePage> {
     if (confirm == true) {
       setState(() {
         allAbsent = !allAbsent;
-        for (var student in students) {
-          student["present"] = !allAbsent;
-        }
+        students = students.map((student) => {
+          ...student,
+          'present': !allAbsent,
+        }).toList();
+
         filteredStudents = List.from(students);
       });
 
@@ -262,6 +281,122 @@ class _AttendancePageState extends State<AttendancePage> {
     }
   }
 
+  String? _validateHours(String value) {
+    if (value.isEmpty) return null; // Don't show error when empty
+    final hours = int.tryParse(value);
+    if (hours == null || hours < 1 || hours > 6) {
+      return 'Enter 1-6 hours';
+    }
+    return null;
+  }
+  Widget _buildSaveButton() {
+    return Container(
+
+      height: 80,
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: ElevatedButton.icon(
+        icon: isSaving
+            ? SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Colors.white,
+          ),
+        )
+            : Icon(Icons.save),
+        label: isSaving
+            ? Text("Saving...")
+            : Text("SAVE ATTENDANCE"),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _isSaveEnabled() && !isSaving
+              ? Colors.blue
+              : Colors.grey,
+          foregroundColor: Colors.white,
+          minimumSize: Size(double.infinity, 50),
+        ),
+        onPressed: (_isSaveEnabled() && !_hasDuplicateStudents() && !isSaving)
+            ? _showAbsenteeSummary
+            : null,
+      ),
+    );
+  }
+  bool _isSaveEnabled() {
+    // Reuse the same validation logic from hours field
+    final hours = int.tryParse(hoursController.text);
+    return hours != null && hours >= 1 && hours <= 6;
+  }
+
+  bool _hasDuplicateStudents() {
+    final ids = students.map((s) => s['id']).toList();
+    return ids.length != Set.from(ids).length;
+  }
+
+  void _validateBeforeSave() {
+    if (_hasDuplicateStudents()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Duplicate student entries detected")));
+      return;
+    }
+    confirmAndSaveAttendance();
+  }
+  void _showAbsenteeSummary() {
+    final absentStudents = students.where((s) => !s['present']).toList();
+    title: Text("Absent Students ($_absentCount/${students.length})");
+    if (absentStudents.isEmpty) {
+      confirmAndSaveAttendance();
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Review Absent Students (${absentStudents.length})"),
+        content: Container(
+          width: double.maxFinite,
+          constraints: BoxConstraints(maxHeight: 300),
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: absentStudents.length,
+            itemBuilder: (_, index) => ListTile(
+              leading: CircleAvatar(
+                backgroundColor: Colors.red[400],
+                child: Text(
+                  "${absentStudents[index]['roll_no']}",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+              title: Text(absentStudents[index]['name']),
+              tileColor: Colors.red[50],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("EDIT", style: TextStyle(color: Colors.blue)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red[400],
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              confirmAndSaveAttendance();
+            },
+            child: Text("CONFIRM ABSENCE", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+// Add this with your other state variables
+  int get _absentCount => students.where((s) => !s['present']).length;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -276,6 +411,7 @@ class _AttendancePageState extends State<AttendancePage> {
           ),
         ],
       ),
+      bottomNavigationBar: _buildSaveButton(),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -323,14 +459,16 @@ class _AttendancePageState extends State<AttendancePage> {
                             borderRadius: BorderRadius.circular(10),
                           ),
                           hintText: "Hours (1-6)",
+                          errorText: _validateHours(hoursController.text)
                         ),
                         onChanged: (value) {
-                          int? enteredValue = int.tryParse(value);
+                        /*  int? enteredValue = int.tryParse(value);
                           if (enteredValue != null &&
                               (enteredValue < 1 || enteredValue > 6)) {
-                            hoursController.clear();
-                          }
+                            hoursController.clear();*/
+                          setState(() {});//for real time validation
                         },
+
                       ),
                     ),
                     SizedBox(width: 10),
@@ -351,11 +489,15 @@ class _AttendancePageState extends State<AttendancePage> {
                   ],
                 ),
                 SizedBox(height: 10),
-                Center(
-                  child: Text(
-                    currentTime,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(currentTime),
+                    Chip(
+                      label: Text("$_absentCount Absent"),
+                      backgroundColor: _absentCount > 0 ? Colors.red[100] : Colors.green[100],
+                    ),
+                  ],
                 ),
                 SizedBox(height: 10),
                 Expanded(
@@ -422,11 +564,18 @@ class _AttendancePageState extends State<AttendancePage> {
         ),
       ),
       // Normal Save Button at the bottom (not a floating button)
-      floatingActionButton: FloatingActionButton(
-        onPressed: confirmAndSaveAttendance,
-        backgroundColor: Colors.blue,
-        child: Icon(Icons.save, color: Colors.white),
-      ),
+    /*  floatingActionButton: FloatingActionButton(
+        onPressed: hoursController.text.isEmpty || int.tryParse(hoursController.text) == null
+            ? null // Disable when invalid
+            : confirmAndSaveAttendance,
+        backgroundColor: hoursController.text.isEmpty
+            ? Colors.grey // Visual feedback
+            : Colors.blue,
+        child: const Icon(Icons.save, color: Colors.white),
+      ),*/
+
     );
   }
 }
+
+

@@ -5,9 +5,9 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 // import 'package:admin1/screens/faculty_page.dart';
 // import 'package:admin1/screens/student_page.dart';
-import 'package:attendance/components/custom_drawer.dart';
-import 'package:attendance/pages/admin/faculty_list.dart';
-import 'package:attendance/pages/admin/student_list.dart';
+import 'package:attendance_app/components/custom_drawer.dart';
+import 'package:attendance_app/pages/admin/faculty_list.dart';
+import 'package:attendance_app/pages/admin/student_list.dart';
 
 class AdminHomePage extends StatefulWidget {
   final String adminName;
@@ -111,7 +111,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
         ),
       ),
 
-      drawer: CustomDrawer(adminName: widget.adminName),
+      drawer: CustomDrawer(adminName: widget.adminName,),
 
       body: Column(
         children: [

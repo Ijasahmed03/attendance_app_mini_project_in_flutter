@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:attendance/components/custom_drawer.dart';
-import 'package:attendance/pages/admin/upload_faculty.dart';
+import 'package:attendance_app/components/custom_drawer.dart';
+import 'package:attendance_app/pages/admin/upload_faculty.dart';
 
 class AddFaculty extends StatefulWidget {
   final String adminName;

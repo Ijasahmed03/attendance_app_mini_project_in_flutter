@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_spinkit/flutter_spinkit.dart' show SpinKitThreeBounce;
-import 'package:attendance/components/custom_drawer.dart';
+import 'package:attendance_app/components/custom_drawer.dart';
 
 class PromoteStudentsScreen extends StatefulWidget {
   final String adminName;

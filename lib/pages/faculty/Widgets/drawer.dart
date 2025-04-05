@@ -1,7 +1,7 @@
 // ignore_for_file: unused_import
 
 import 'package:flutter/material.dart';
-import 'package:attendance/pages/login_page.dart';
+import 'package:attendance_app/pages/login_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';  // Added for logout
 
 class FacultyDrawer extends StatelessWidget {
@@ -42,16 +42,21 @@ class FacultyDrawer extends StatelessWidget {
             leading: Icon(Icons.logout),
             title: Text("Logout"),
             onTap: () async {
-              // ✅ Clear faculty session
+              // Clear faculty session
               SharedPreferences prefs = await SharedPreferences.getInstance();
               await prefs.clear();
 
-              Navigator.pop(context);
+              Navigator.pop(context); // Close the drawer
+
+              // Clear all routes and push login page
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => LoginPage()),
+                    (Route<dynamic> route) => false,
+              );
+
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text("Logged Out")),
               );
-
-              Navigator.pushReplacementNamed(context, '/login');
             },
           ),
         ],

@@ -2,7 +2,7 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'package:attendance/pages/faculty/Widgets/drawer.dart' show FacultyDrawer;
+import 'package:attendance_app/pages/faculty/Widgets/drawer.dart' show FacultyDrawer;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';

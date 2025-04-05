@@ -4,7 +4,7 @@ import 'package:excel/excel.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:attendance/components/custom_drawer.dart';
+import 'package:attendance_app/components/custom_drawer.dart';
 
 class UploadFaculty extends StatefulWidget {
   final String adminName;

@@ -1,6 +1,6 @@
 
-import 'package:attendance/pages/faculty/Widgets/drawer.dart';
-import 'package:attendance/pages/faculty/faculty_view.dart';
+import 'package:attendance_app/pages/faculty/Widgets/drawer.dart';
+import 'package:attendance_app/pages/faculty/faculty_view.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;

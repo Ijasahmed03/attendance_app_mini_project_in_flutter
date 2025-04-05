@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:attendance/components/custom_drawer.dart';
+import 'package:attendance_app/components/custom_drawer.dart';
 //import 'package:attendance/pages/admin/add_student.dart';
-import 'package:attendance/pages/admin/upload_students.dart';
+import 'package:attendance_app/pages/admin/upload_students.dart';
 //import 'package:attendance/pages/admin/admin_home.dart';
 
 class AddStudent extends StatefulWidget {

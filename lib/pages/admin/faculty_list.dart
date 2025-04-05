@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:attendance/components/custom_drawer.dart';
+import 'package:attendance_app/components/custom_drawer.dart';
 // import 'package:attendance/pages/admin/add_faculty.dart'; // Ensure this file exists
 
 //import 'package:attendance/pages/admin/student_list.dart'; // Ensure this file exists

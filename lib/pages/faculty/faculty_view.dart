@@ -1,5 +1,5 @@
 import 'dart:io';
-
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
@@ -125,13 +125,13 @@ class _AttendanceViewPageState extends State<AttendanceViewPage> {
   }
 
   void _toggleEditing() {
-    if (_isEditing) {
-      // If currently editing and toggling off (canceling)
-      _fetchAttendanceData(); // Refresh data from server to discard changes
-    } else {
-      // If entering edit mode
-      setState(() => _isEditing = true);
-    }
+    setState(() {
+      _isEditing = !_isEditing; // Simply toggle the state
+      if (!_isEditing) {
+        // If we're exiting edit mode, refresh data
+        _fetchAttendanceData();
+      }
+    });
   }
 
   void _updateStudentTotals(Map<String, dynamic> student) {
@@ -170,7 +170,6 @@ class _AttendanceViewPageState extends State<AttendanceViewPage> {
     try {
       setState(() => _isLoading = true);
 
-      // Prepare the data
       final attendanceData = {
         'faculty_id': widget.facultyId,
         'semester_id': widget.semesterId,
@@ -185,39 +184,28 @@ class _AttendanceViewPageState extends State<AttendanceViewPage> {
         }).toList(),
       };
 
-      debugPrint('Sending data: ${jsonEncode(attendanceData)}');
-
       final response = await http.post(
         Uri.parse('http://10.0.2.2/localconnect/faculty/update_attendance.php'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(attendanceData),
       ).timeout(const Duration(seconds: 30));
 
-      debugPrint('Response status: ${response.statusCode}');
-      debugPrint('Response body: ${response.body}');
-
       final data = jsonDecode(response.body);
 
-      if (response.statusCode == 200) {
-        if (data['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Attendance updated successfully!')),
-          );
-          _toggleEditing();
-          await _fetchAttendanceData(); // Refresh data
-        } else {
-          throw Exception(data['error'] ?? 'Update failed');
-        }
+      if (response.statusCode == 200 && data['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Attendance updated successfully!')),
+        );
+        setState(() => _isEditing = false); // Exit edit mode on success
+        await _fetchAttendanceData(); // Refresh data
       } else {
-        throw Exception('HTTP ${response.statusCode}: ${response.body}');
+        throw Exception(data['error'] ?? 'Update failed');
       }
-    } on SocketException {
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No internet connection')),
+        SnackBar(content: Text('Failed to save: ${e.toString()}')),
       );
-    }
-
-    finally {
+    } finally {
       setState(() => _isLoading = false);
     }
   }
@@ -305,102 +293,130 @@ class _AttendanceViewPageState extends State<AttendanceViewPage> {
 
 // For Edit Mode - Similar but with editable fields
   Widget _buildEditableAttendanceRow(Map<String, dynamic> record, Map<String, dynamic> student) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: Colors.grey.shade200, width: 1),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Date Column
-            SizedBox(
-              width: 80,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    DateFormat('dd').format(record['date']),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
+    return StatefulBuilder(
+      builder: (context, setStateLocal) {
+        // Track the current status locally for immediate visual feedback
+        bool isPresent = record['status'] == 'present';
+
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: BorderSide(color: Colors.grey.shade200, width: 1),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Date Column (unchanged)
+                SizedBox(
+                  width: 80,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        DateFormat('dd').format(record['date']),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      Text(
+                        DateFormat('MMM yyyy').format(record['date']),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: 12),
+
+                // Hours Input (unchanged)
+                SizedBox(
+                  width: 60,
+                  child: TextFormField(
+                    controller: TextEditingController(text: record['hours'].toString()),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 15),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      border: const OutlineInputBorder(),
+                      hintText: 'Hrs',
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (value) {
+                      setState(() {
+                        record['hours'] = int.tryParse(value) ?? 1;
+                        _updateStudentTotals(student);
+                      });
+                    },
+                  ),
+                ),
+
+                const Spacer(),
+
+                // Enhanced Status Toggle with immediate feedback
+                GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    setStateLocal(() {
+                      isPresent = !isPresent;
+                      record['status'] = isPresent ? 'present' : 'absent';
+                    });
+                    // Update the parent state for totals calculation
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        setState(() {
+                          _updateStudentTotals(student);
+                        });
+                      }
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: isPresent ? Colors.green[50] : Colors.red[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isPresent ? Colors.green : Colors.red,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isPresent ? Icons.check_circle : Icons.cancel,
+                          color: isPresent ? Colors.green[800] : Colors.red[800],
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          isPresent ? 'PRESENT' : 'ABSENT',
+                          style: TextStyle(
+                            color: isPresent ? Colors.green[800] : Colors.red[800],
+                            fontWeight: FontWeight.w500,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  Text(
-                    DateFormat('MMM yyyy').format(record['date']),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.black,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(width: 12),
-
-            // Hours Input
-            SizedBox(
-              width: 60,
-              child: TextFormField(
-                controller: TextEditingController(text: record['hours'].toString()),
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 15),
-                decoration: InputDecoration(
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                  border: const OutlineInputBorder(),
-                  hintText: 'Hrs',
                 ),
-                keyboardType: TextInputType.number,
-                onChanged: (value) {
-                  setState(() {
-                    record['hours'] = int.tryParse(value) ?? 1;
-                    _updateStudentTotals(student);
-                  });
-                },
-              ),
+              ],
             ),
-
-            const Spacer(),
-
-            // Status Toggle - Updated with proper state management
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  record['status'] = record['status'] == 'present' ? 'absent' : 'present';
-                  _updateStudentTotals(student);
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                decoration: BoxDecoration(
-                  color: record['status'] == 'present' ? Colors.green[50] : Colors.red[50],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: record['status'] == 'present' ? Colors.green : Colors.red,
-                    width: 1.5,
-                  ),
-                ),
-                child: Text(
-                  record['status'] == 'present' ? 'PRESENT' : 'ABSENT',
-                  style: TextStyle(
-                    color: record['status'] == 'present' ? Colors.green[800] : Colors.red[800],
-                    fontWeight: FontWeight.w500,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -574,10 +590,7 @@ class _AttendanceViewPageState extends State<AttendanceViewPage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             OutlinedButton(
-              onPressed: () {
-                _fetchAttendanceData(); // Refresh data to discard changes
-                setState(() => _isEditing = false);
-              },
+              onPressed: _toggleEditing, // Use the toggle method directly
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.red,
                 side: const BorderSide(color: Colors.red),
@@ -640,7 +653,7 @@ class _AttendanceViewPageState extends State<AttendanceViewPage> {
           ),
           IconButton(
             icon: Icon(_isEditing ? Icons.close : Icons.edit),
-            onPressed: _toggleEditing,
+            onPressed: _toggleEditing, // Use the same toggle method
           ),
         ],
       ),

@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:attendance_app/pages/student/stdrawer.dart';
-
+import 'package:attendance_app/pages/student/stview.dart';
 class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
 
@@ -165,7 +165,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                           (subject) => subject["subject_id"] == selectedSubject,
                     );
 
-                    /*Navigator.push(
+                    Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => AttendanceViewPage(
@@ -174,11 +174,12 @@ class _StudentDashboardState extends State<StudentDashboard> {
                           subjectId: selectedData['subject_id'],
                           subjectName: selectedData['subject_name'],
                           facultyId: selectedData['faculty_id'],
+                          facultyName: selectedData['faculty_name'],
                           department: selectedData['department'],
                           semester: selectedData['semester'],
                         ),
                       ),
-                    );*/
+                    );
                   },
                   icon: const Icon(Icons.visibility),
                   label: const Text('View Attendance'),

@@ -22,6 +22,7 @@ A cross-platform attendance tracking system designed for colleges, developed usi
 - Attendance percentage calculation
 - Clean, simple user interface
 - Bulk data management by admin
+- EXport attendance to pdf privilege for faculty
 
 ## 📷 Screenshots
 -Login page
@@ -54,7 +55,7 @@ A cross-platform attendance tracking system designed for colleges, developed usi
 - Notifications to students
 - Attendance analytics dashboard
 - Faculty leave management
-- Export attendance to Excel/PDF
+- Export attendance to Excel
 
 ---
 
